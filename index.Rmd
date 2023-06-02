@@ -1,5 +1,5 @@
 ---
-title: "stackR"
+title: "Monographs in SCF"
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
@@ -39,6 +39,7 @@ library(DT)
 library(jsonlite)
 library(lubridate)
 library(flexdashboard)
+library(httr)
 
 knitr::opts_chunk$set(echo = FALSE)
 
@@ -95,9 +96,10 @@ if(ws_key_exists) {
 ## Add a "checkout category" that is discrete instead of numeric
 ## Join the worldcat holdings to dataset for first time
 d <- read_csv(params$file) %>%
-  mutate(checkout_category = ifelse(checkout_total == 0, "0", 
-                                    ifelse(checkout_total == 1, "1", 
-                                           ifelse(checkout_total == 2, "2", "More than 2")))) %>%
+  mutate(total_num_of_items = ifelse(total_num_of_items == 1, "1", 
+                                     ifelse(total_num_of_items == 2, "2", "More than 2"))) %>%
+  mutate(libs_with_holdings = ifelse(libs_with_holdings == 1, "1",
+                                     ifelse(libs_with_holdings == 2, "2", "More than 2"))) %>%
   left_join(wc_have) %>%
   mutate(wc_holdings = ifelse(is.na(oclc_num), NA, wc_holdings)) %>%
   distinct()
@@ -425,8 +427,8 @@ renderValueBox({
   valueBox(
     value = format(nrow(d), big.mark = ",", scientific = FALSE),
     icon = "fa-university",
-    color = "#267aba",
-    caption = "Total number of records in stackR"
+    color = "#076293",
+    caption = "Total number of monograph records (by network number) in the SCF"
   )
   
 })
@@ -441,7 +443,7 @@ renderValueBox({
   valueBox(
     value = format(nrow(values$df), big.mark = ",", scientific = FALSE),
     icon = "fa-book",
-    color = "#267aba",
+    color = "#e89c51",
     caption = "Number of records that match your filtering criteria"
   )
   
@@ -455,7 +457,7 @@ renderValueBox({
   valueBox(
     value = format(length(unique(values$df$oclc_num)), big.mark = ",", scientific = FALSE),
     icon = "fa-list-ul",
-    color = "#267aba",
+    color = "#e89c51",
     caption = "Unique OCLC Numbers in selected records"
   )
   
@@ -475,7 +477,7 @@ renderValueBox({
   valueBox(
     value = paste0(round(df_have/length(un_oclc) * 100, 2), "%"),
     icon = "fa-check-circle",
-    color = "#267aba",
+    color = "#e89c51",
     caption = "Percent of selected records checked against WorldCat"
   )
   
@@ -491,13 +493,13 @@ Row
 renderValueBox({
   
   tmp <- values$df %>%
-    filter(checkout_category == "0")
+    filter(total_num_of_items == "1")
   
   valueBox(
     value = paste0(format(nrow(tmp), big.mark = ",", scientific = FALSE)),
     icon = "fa-ban",
     color = "#9d162e",
-    caption = "Records have 0 circulations"
+    caption = "Items with a single copy"
   )
   
 })
@@ -508,13 +510,13 @@ renderValueBox({
 renderValueBox({
   
   tmp <- values$df %>%
-    filter(checkout_category == "1")
+    filter(total_num_of_items == "2" | total_num_of_items == "More than 2")
   
   valueBox(
     value = paste0(format(nrow(tmp), big.mark = ",", scientific = FALSE)),
-    icon = "fa-hand-point",
-    color = "#ffa00f",
-    caption = "Records have 1 circulation"
+    icon = "fa-thumbs-up",
+    color = "#62d15b",
+    caption = "Items with 2 or more copies"
   )
   
 })
@@ -525,12 +527,13 @@ renderValueBox({
 renderValueBox({
   
   tmp <- values$df %>%
-    filter(checkout_category == "2")
+    filter(libs_with_holdings == "1")
   
   valueBox(
     value = paste0(format(nrow(tmp), big.mark = ",", scientific = FALSE)),
-    color = "rgb(165, 215, 95)",
-    caption = "Records have 2 circulations"
+    icon = "fa-ban",
+    color = "#9d162e",
+    caption = "Items held by a single library"
   )
   
 })
@@ -541,13 +544,13 @@ renderValueBox({
 renderValueBox({
   
   tmp <- values$df %>%
-    filter(checkout_category == "More than 2")
+    filter(libs_with_holdings == "2" | libs_with_holdings == "More than 2")
   
   valueBox(
     value = paste0(format(nrow(tmp), big.mark = ",", scientific = FALSE)),
     icon = "fa-thumbs-up",
-    color = "#003c73",
-    caption = "Records have More than 2 circulations"
+    color = "#62d15b",
+    caption = "Items held by 2 or more libraries"
   )
   
 })
@@ -562,13 +565,13 @@ Row
 renderValueBox({
   
   tmp <- values$df %>%
-    filter(checkout_category == "0")
+    filter(total_num_of_items == "1")
   
   valueBox(
     value = paste0(round(nrow(tmp)/nrow(values$df) * 100, 2), "%"),
     icon = "fa-ban",
     color = "#9d162e",
-    caption = "Percent of records with 0 circulations"
+    caption = "Percent of items with a single copy"
   )
   
 })
@@ -579,13 +582,13 @@ renderValueBox({
 renderValueBox({
   
   tmp <- values$df %>%
-    filter(checkout_category == "1")
+    filter(total_num_of_items == "2" | total_num_of_items == "More than 2")
   
   valueBox(
     value = paste0(round(nrow(tmp)/nrow(values$df) * 100, 2), "%"),
-    icon = "fa-hand-point",
-    color = "#ffa00f",
-    caption = "Percent of records with 1 circulation"
+    icon = "fa-thumbs-up",
+    color = "#62d15b",
+    caption = "Percent of items with 2 or more copies"
   )
   
 })
@@ -596,12 +599,13 @@ renderValueBox({
 renderValueBox({
   
   tmp <- values$df %>%
-    filter(checkout_category == "2")
+    filter(libs_with_holdings == "1")
   
   valueBox(
     value = paste0(round(nrow(tmp)/nrow(values$df) * 100, 2), "%"),
-    color = "rgb(165, 215, 95)",
-    caption = "Percent of records with 2 circulations"
+    icon = "fa-ban",
+    color = "#9d162e",
+    caption = "Percent of items held by a single library"
   )
   
 })
@@ -612,13 +616,13 @@ renderValueBox({
 renderValueBox({
   
   tmp <- values$df %>%
-    filter(checkout_category == "More than 2")
+    filter(libs_with_holdings == "2" | libs_with_holdings == "More than 2")
   
   valueBox(
     value = paste0(round(nrow(tmp)/nrow(values$df) * 100, 2), "%"),
     icon = "fa-thumbs-up",
-    color = "#003c73",
-    caption = "Records have More than 2 circulations"
+    color = "#62d15b",
+    caption = "Percent of items held by two or more libraries"
   )
   
 })
